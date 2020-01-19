@@ -286,7 +286,57 @@ If you aren't familiar with RxJs or reactive programming check out these links f
 - [What is Reactive Programming - Andre Stalz](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754)
 - [Learn RxJs](https://www.learnrxjs.io/)
 
-Here's an implementation idea using custom RxJs operators to allow this:
+Here's an implementation idea using a single custom RxJs operators to allow this:
 
+{% highlight typescript %}
+import {
+    of,
+    OperatorFunction,
+    pipe,
+} from 'rxjs';
+import { flatMap } from 'rxjs/operators';
 
-You can see a [complete code example](https://www.github.com/jonminter/railway-oriented-programming-async) on my github.
+type AsyncSwitchTransform<I, O, E> = (input: I) => AsyncResult<O, E>;
+
+function asyncAndThen<I, O, E>(
+    railwaySwitch: AsyncSwitchTransform<I, O, E>
+): OperatorFunction<Result<I, E>, Result<O, E>> {
+    return pipe(
+        flatMap(x => {
+            return x.isOk() ? railwaySwitch(x.value) : of(x as Err<any, E>);
+        })
+    );
+}
+{% endhighlight %}
+
+That's just a few lines of code but let's break down what it's doing. First, we define an type alias so we have a shorthand type for defining our switch functions that can optionally transform the input type to a different output type.
+
+And second, we define an RxJs operator by creating a function that returns an `OperatorFunction` that RxJs can use to transform the `Observable`. This function uses the RxJs `pipe` function and uses the `flatMap` operator with a function that will unwrap the `Result` object, check if there was an error and if not pass the value to the next switch function in the railway sequence. However if the `Result` object contains an error then we short circuit and return the `Error`.
+
+Why use `flatMap` instead of the RxJs `map` operator? Remember since we're working with promises the switch function is returning a promise of a future `Result` object rather than the `Result` object it. So we end up with an observable item that contains a promise of a `Result` and the `flatMap` operator will handle the flattening for us so that at the end of all our operations we end up with an `Observable<Result<User, string>>` instead of `Observable<Promise<Result<User, string>>>`.
+
+So here's how we would use this new operator:
+
+{% highlight typescript %}
+const johnPublic = new User('johnqpublic', 'John', 'Public');
+of(Result.ok(johnPublic))
+    .pipe(
+        asyncAndThen(convertAsync(validateUsernameNotEmpty)),
+        asyncAndThen(convertAsync(validateUsernameHasValidChars)),
+        asyncAndThen(validateUsernameIsUnqique),
+        asyncAndThen(saveUser)
+    )
+    .toPromise()
+    .then(result => {
+        result.match({
+            Ok: user => printSavedUser(user),
+            Err: errMsg => printError(errMsg)
+        });
+    });
+{% endhighlight %}
+
+So now that we've defined this operator we can use our railway pattern and use it with functions that transform the input and still have the power of TypeScript's type system to ensure for example we've put our switch functions in the right order and that they can only be used with the types they are defined for.
+
+One other side benefit of using RxJs to do this is that we can not only run our sequence of switch functions on a single item we could use the same sequence of transformations on a stream of multiple items. So for example you could use the same logic to import a batch of users into your user database that you use to create a single user.
+
+So that's it, I hope someone finds this useful or thought provoking. You can see a [complete code example](https://www.github.com/jonminter/railway-oriented-programming-async) on my github.
