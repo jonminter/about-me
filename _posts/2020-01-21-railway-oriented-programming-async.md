@@ -156,39 +156,6 @@ validators.reduce((result, validator) => {
 }, Result.ok(input));
 {% endhighlight %}
 
-{% highlight typescript %}
-...
-
-async function validateUsernameIsUnique(input: User): Promise<Result<User, string>> {
-    const userCount = await getCountOfUsersWithUsername(input.username);
-    if (userCount !== 0) {
-        //There is another user with this username
-        return Result.err('Username is not unique!');
-    }
-    return Result.ok(input);
-}
-
-...
-
-async function doValidation(newUser: User) {
-    let validationResult = Result.ok(newUser)
-        .andThen(validateUsernameNotEmpty)
-        .andThen(validateUsernameHasValidChars);
-
-    if (validationResult.isOk()) {
-        validationResult = await validateUsernameIsUnique(validationResult.value);
-    }
-    return validationResult;
-}
-
-doValidation(newUser)
-    .match({
-        Ok: user => printValidUser(user),
-        Err: errorMsg => printError(errorMsg),
-    });
-{% endhighlight %}
-
-
 So how could we solve this? Is there a way to model this so we can handle both async and sync functions and still use this ROP pattern?
 
 Let's think about what's happening when we chain these functions together. When we're working with synchronous functions every time we call True Myth's `andThen` function we pass it a switch function and it applies that function to the current `Result` object we have at the time. When we're working with asynchronous functions we aren't returning an actual `Result` object but a promise that there will be a `Result` object at some point in the future. So we need some way to queue up the functions along our railway and only execute them when the previous function's promise has resolved.
@@ -257,7 +224,7 @@ class SavedUserAccount {
     constructor(readonly newUserId: string) {}
 }
 
-async function saveUser(input: User): Promise<Result<User, string>> {
+async function saveUser(input: User): Promise<Result<SavedUserAccount, string>> {
     // Let's pretend we made a call to our user database to save the user and
     //  this is the new user's user ID
     Promise.resolve(new SavedUserAccount('ee2dadae-f70f-4cd4-b0a3-0d03d779118f'));
@@ -270,7 +237,7 @@ await (AsyncRailway
     .andThen(convertAsync(validateUsernameNotEmpty))
     .andThen(convertAsync(validateUsernameNotEmpty))
     .andThen(validateUsernameIsUnqique)
-    .andThen(saveUser)
+    .andThen(saveUser) // Compilation error here because we're returning Result<SavedUserAccount>
     .arriveAtDestination())
     .match({
         Ok: user => printValidUser(user),
@@ -278,9 +245,9 @@ await (AsyncRailway
     });
 {% endhighlight %}
 
-Whoops this doesn't compile anymore because our `AsyncRailway` class only allows us to collect and use switch functions that act on and return the same type.
+Whoops! This doesn't compile anymore because our `AsyncRailway` class only allows us to collect and use switch functions that act on and return the same type.
 
-So how could we solve this? Lets harness the power of RxJS the reactive extensions framework for JavaScript and create a couple of custom operators that would allow us to acheive this same result and still allow us to transform inputs to a different output type. 
+So how could we solve this? Lets harness the power of RxJS the reactive extensions framework for JavaScript and create a custom operator that would allow us to acheive this same result and still allow us to transform inputs to a different output type. 
 
 If you aren't familiar with RxJs or reactive programming check out these links for some context:
 - [What is Reactive Programming - Andre Stalz](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754)
@@ -309,9 +276,11 @@ function asyncAndThen<I, O, E>(
 }
 {% endhighlight %}
 
-That's just a few lines of code but let's break down what it's doing. First, we define an type alias so we have a shorthand type for defining our switch functions that can optionally transform the input type to a different output type.
+We've managed to do this in just a few lines of code let's break down what it's doing.
 
-And second, we define an RxJs operator by creating a function that returns an `OperatorFunction` that RxJs can use to transform the `Observable`. This function uses the RxJs `pipe` function and uses the `flatMap` operator with a function that will unwrap the `Result` object, check if there was an error and if not pass the value to the next switch function in the railway sequence. However if the `Result` object contains an error then we short circuit and return the `Error`.
+First, we define an type alias so we have a shorthand type for defining our switch functions that can optionally transform the input type to a different output type.
+
+And second, we define an RxJs operator by creating a function that returns an `OperatorFunction` that RxJs can use to transform the `Observable`. This function uses the RxJs `pipe` function and uses the `flatMap` operator with a function that will unwrap the `Result` object, check if there was an error and if not pass the value to the next switch function in the railway sequence. However if the `Result` object contains an error then we short circuit and return the `Error`. Almost identical to the promise based version above.
 
 Why use `flatMap` instead of the RxJs `map` operator? Remember since we're working with promises the switch function is returning a promise of a future `Result` object rather than the `Result` object it. So we end up with an observable item that contains a promise of a `Result` and the `flatMap` operator will handle the flattening for us so that at the end of all our operations we end up with an `Observable<Result<User, string>>` instead of `Observable<Promise<Result<User, string>>>`.
 
