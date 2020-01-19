@@ -215,7 +215,7 @@ await (AsyncRailway
     });
 {% endhighlight %}
 
-Awesome that works! But what if out functions are transforming the initial input from one type to another? For example suppose we want to add a function to the chain that saves the user account to our database and returns the inserted user's identifier:
+Awesome that works! But what if our functions are transforming the initial input from one type to another? For example suppose we want to add a function to the chain that saves the user account to our database and returns the inserted user's identifier:
 
 {% highlight typescript %}
 ...
@@ -227,7 +227,7 @@ class SavedUserAccount {
 async function saveUser(input: User): Promise<Result<SavedUserAccount, string>> {
     // Let's pretend we made a call to our user database to save the user and
     //  this is the new user's user ID
-    Promise.resolve(new SavedUserAccount('ee2dadae-f70f-4cd4-b0a3-0d03d779118f'));
+    return Promise.resolve(new SavedUserAccount('ee2dadae-f70f-4cd4-b0a3-0d03d779118f'));
 }
 
 ...
