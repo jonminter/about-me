@@ -1,7 +1,7 @@
 ---
 author: Jon Minter
 title:  "Asynchronous Functions in the Railway Oriented Programming Model"
-date:   2020-01-15 09:30:00 -0400
+date:   2020-01-20 09:30:00 -0400
 categories:
     - Posts
 tags:
