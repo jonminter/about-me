@@ -8,6 +8,7 @@ tags:
     - functional programming
     - railway oriented programming
     - concurrency
+published: false
 ---
 Despite the fact that I have used imperative programming languages throughout my career (though some like JavaScript have the ability to be used in a functional way) I have have always had a fascination with functional programming ever since I took a class on functional programming using the OCaml programing language back when I was in undergraduate school.
 
