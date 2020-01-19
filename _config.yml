@@ -45,7 +45,6 @@ plugins:
   - jekyll-feed
   - jemoji
   - jekyll-include-cache
-  - jekyll-analytics
 
 defaults:
   # _posts
@@ -77,10 +76,12 @@ tag_archive:
   type: liquid
   path: /tags/
 
-jekyll_analytics:
-  GoogleAnalytics:          # Add, if you want to track with Google Analytics
-    id: UA-42939220-2       # Required - replace with your tracking id
-    anonymizeIp: false      # Optional - Default: false - set to true for anonymized tracking
+analytics:
+  provider: "google-gtag"
+  google:
+    tracking_id: "UA-156522231-1"
+    anonymize_ip: false # default
+
   
 # Exclude from processing.
 # The following items will not be processed, by default.
