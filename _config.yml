@@ -18,8 +18,8 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 
-title: Engineering Techobabble
-subtitle: Blah blah blah blah
+title: Jon Minter
+subtitle: Musings of a Software Engineer
 email: iam@jonminter.dev
 description: >- # this means to ignore newlines until "baseurl:"
   Musings about technology and stuff.
@@ -32,6 +32,8 @@ breadcrumbs: true
 permalink: /:categories/:title/
 paginate: 5 # amount of posts to show
 paginate_path: /page:num/
+author: Jon Minter
+show_drafts: false
 
 # Build settings
 remote_theme: mmistakes/minimal-mistakes
@@ -43,6 +45,7 @@ plugins:
   - jekyll-feed
   - jemoji
   - jekyll-include-cache
+  - jekyll-analytics
 
 defaults:
   # _posts
@@ -56,6 +59,7 @@ defaults:
       comments: true
       share: true
       related: true
+      classes: wide
   # _pages
   - scope:
       path: ""
@@ -63,6 +67,7 @@ defaults:
     values:
       layout: single
       author_profile: true
+      classes: wide
 
 
 category_archive:
@@ -72,6 +77,11 @@ tag_archive:
   type: liquid
   path: /tags/
 
+jekyll_analytics:
+  GoogleAnalytics:          # Add, if you want to track with Google Analytics
+    id: UA-42939220-2       # Required - replace with your tracking id
+    anonymizeIp: false      # Optional - Default: false - set to true for anonymized tracking
+  
 # Exclude from processing.
 # The following items will not be processed, by default.
 # Any item listed under the `exclude:` key here will be automatically added to
