@@ -21,7 +21,9 @@ If you are not familiar with this concept you will probably find it helpful to r
 - [Railway Oriented Programming - Scott Wlaschin (I highly recommend watching the video of his talk)](https://fsharpforfunandprofit.com/rop/)
 - [Against Railway Oriented Programming - Scott Wlaschin](https://fsharpforfunandprofit.com/posts/against-railway-oriented-programming/)
 
-So you've read these articles and you agree that is this is cool idea and want to start using it where it makes sense in your code base. I was attempting to use this pattern with TypeScript recently. This pattern works great if your switch functions are all synchronous and don't need to wait for an HTTP call, file system operation or database query. You simply start with your initial input and pass that input through your switches along the railway. But lets see what happens when you throw asynchronous functions in the mix.
+So you've read these articles and you agree that is this is cool idea and want to start using it where it makes sense in your code base. I was attempting to use this pattern with TypeScript recently. This pattern works great if your switch functions are all synchronous and don't need to wait for an HTTP call, file system operation or database query. You simply start with your initial input and pass that input through your switches along the railway. But this is the real world and most of us have to interact with systems outside of our program. I didn't real find much in my search to see how anyone who using this pattern handled that outside of F#.
+
+So lets see what happens when you throw asynchronous functions in the mix.
 
 Let's use as an example validating user input for an API. We'll use the functional programming helper library [True Myth](https://github.com/true-myth/true-myth) for demonstration purposes as it includes an implementation of the Result type and helper functions to wrap/unwrap values and chain together function calls.
 
@@ -70,9 +72,10 @@ Result.ok(newUser)
 {% endhighlight %}
 
 We can see how this pattern might be useful for a few reasons:
-- Allows us to write small, focused functions to handle different validations and compose then together
-- These small functions are easier to test
+- Encourages us to write small, focused functions and chain them together, these small functions are easier to test
 - We can use descriptive names for each function and makes it easy to see what our code is supposed to do by looking at functions that are chained together, our code becomes self documenting
+- We can use the type system to remind us to handle the non-happy path and encourage us to handle the output at the end of both paths the exact same way regardless of how we actually got there
+- If an exception occurs we know it was truly from something exceptional and we can let that exception bubble up to our main exception handler
 
 So this is all well and good but what if for example we needed to validate that the username isn't in use by another user? We'd probably have to make a call to an API or run a query against a database to check if the user name is unique. And that call is going to be an asynchronous call that returns a promise. Why is this an issue? Let's consider this addition to our code:
 
@@ -185,7 +188,53 @@ doValidation(newUser)
 {% endhighlight %}
 
 
-So how could we solve this? Is there a way to model this so we can handle both async and sync functions and still use this ROP pattern? Lets harness the power of RxJS the reactive extensions framework for JavaScript. 
+So how could we solve this? Is there a way to model this so we can handle both async and sync functions and still use this ROP pattern?
+
+Let's think about what's happening when we chain these functions together. When we're working with synchronous functions every time we call True Myth's `andThen` function we pass it a switch function and it applies that function to the current `Result` object we have at the time. When we're working with asynchronous functions we aren't returning an actual `Result` object but a promise that there will be a `Result` object at some point in the future. So we need some way to queue up the functions along our railway and only execute them when the previous function is done.
+
+So we can write up a simple helper class that abstracts that logic for us and provides a nice fluent interface, the methods are named to keep with our railway analogy:
+
+{% highlight typescript %}
+// Let's create a type alias for a Promise of a Result just to save us some typing
+type AsyncResult<S, E> = Promise<Result<S, E>>;
+// ...alias type for our async switch functions
+type AsyncSwitch<S,E> = (input: S) => AsyncResult<S, E>;
+// ...and finally an alias for our synchronous switch functions
+type Switch<S, E> = (input: S) => Result<S, E>;
+
+function convertAsync<S, E>(syncSwitch: Switch<S, E>): AsyncSwitch<S, E> {
+    return async (input: S) => {
+        return Promise.resolve(syncSwitch(input));
+    }
+}
+
+class AsyncRailway<S,E> {
+    private switches: Array<AsyncSwitch<S, E>> = [];
+    constructor(private readonly input: Result<S, E>) {}
+
+    static leaveTrainStation<S,E>(input: Result<S, E>) {
+        return new AsyncRailway(input);
+    }
+
+    andThen(switchFunction: AsyncSwitch<S, E>) {
+        this.switches.push(switchFunction);
+    }
+
+    async arriveAtDestination(): AsyncResult<S, E> {
+        return this.switches.reduce(async (previousPromise, nextSwitch) => {
+            const previousResult = await previousPromise;
+            return previousResult.isOk()
+                ? await nextSwitch(previousResult.value)
+                : previousResult;
+        }, Promise.resolve(this.input));
+    }
+}
+{% endhighlight %}
+
+So to use this helper class we can now do this:
+
+
+Lets harness the power of RxJS the reactive extensions framework for JavaScript. 
 
 Here's an implementation idea using custom RxJs operators to allow this:
 
