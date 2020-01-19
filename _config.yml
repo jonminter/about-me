@@ -18,19 +18,54 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 
-title: Jon Minter - Musings of a Software Engineer
-email: i.am@jonminter.dev
+title: Engineering Techobabble
+subtitle: Blah blah blah blah
+email: iam@jonminter.dev
 description: >- # this means to ignore newlines until "baseurl:"
-  Musings about technology and random shit.
+  Musings about technology and stuff.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 linkedin_username: jonminter
 github_username:  jonminter
+include: ["_pages"]
+breadcrumbs: true 
+permalink: /:categories/:title/
+paginate: 5 # amount of posts to show
+paginate_path: /page:num/
 
 # Build settings
-theme: minima
+theme: minimal-mistakes-jekyll
+minimal_mistakes_skin: "contrast"
 plugins:
   - jekyll-feed
+
+defaults:
+  # _posts
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: single
+      author_profile: true
+      read_time: true
+      comments: true
+      share: true
+      related: true
+  # _pages
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: single
+      author_profile: true
+
+
+category_archive:
+  type: liquid
+  path: /categories/
+tag_archive:
+  type: liquid
+  path: /tags/
 
 # Exclude from processing.
 # The following items will not be processed, by default.

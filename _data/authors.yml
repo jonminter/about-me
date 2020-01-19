@@ -1,0 +1,14 @@
+Jon Minter:
+  name        : "Jon Minter"
+  bio         : "Software engineer and lifelong learner. Passionate about using data and technology to provide business value and solve challenging problems. Lover of the outdoors and aspiring world traveller."
+  avatar      : "/assets/img/jon-bio-photo.jpg"
+  links:
+    - label: "Email"
+      icon: "fas fa-fw fa-envelope-square"
+      url: "mailto:iam@jonminter.dev"
+    - label: "Github"
+      icon: "fab fa-fw fa-github-square"
+      url: "https://www.github.com/jonminter"
+    - label: "LinkedIn"
+      icon: "fab fa-fw fa-linkedin-square"
+      url: "https://www.linkedin.com/in/jonminter/"
