@@ -7,9 +7,10 @@ categories:
 tags:
     - functional programming
     - railway oriented programming
+    - reactive programming
 published: false
 ---
-Despite the fact that I have mostly used imperative programming languages throughout my career (though some like JavaScript have the ability to be used in a functional way) I have have always had a fascination with functional programming ever since I took a class on functional programming using the OCaml programing language back when I was in undergraduate school.
+Despite the fact that I have mostly used imperative programming languages throughout my career (though some like JavaScript have the ability to be used in a functional way) I have have always had a fascination with functional programming ever since I took a class on functional programming using the OCaml programing language way, way back when I was in undergraduate school.
 
 I won't pretend to be an expert on functional programming or pretend that I have completely wrapped my head around concepts like functors, monads, or applicatives but there was one programming pattern I was reading about a while ago dubbed "Railway Oriented Programming" by Scott Wlaschin that intrigued me.
 
@@ -190,9 +191,9 @@ doValidation(newUser)
 
 So how could we solve this? Is there a way to model this so we can handle both async and sync functions and still use this ROP pattern?
 
-Let's think about what's happening when we chain these functions together. When we're working with synchronous functions every time we call True Myth's `andThen` function we pass it a switch function and it applies that function to the current `Result` object we have at the time. When we're working with asynchronous functions we aren't returning an actual `Result` object but a promise that there will be a `Result` object at some point in the future. So we need some way to queue up the functions along our railway and only execute them when the previous function is done.
+Let's think about what's happening when we chain these functions together. When we're working with synchronous functions every time we call True Myth's `andThen` function we pass it a switch function and it applies that function to the current `Result` object we have at the time. When we're working with asynchronous functions we aren't returning an actual `Result` object but a promise that there will be a `Result` object at some point in the future. So we need some way to queue up the functions along our railway and only execute them when the previous function's promise has resolved.
 
-So we can write up a simple helper class that abstracts that logic for us and provides a nice fluent interface, the methods are named to keep with our railway analogy:
+So we can write up a simple helper class that abstracts that logic for us and provides a nice fluent interface. Keeping with our railway analogy we'll call this helper `AsyncRailway`:
 
 {% highlight typescript %}
 // Let's create a type alias for a Promise of a Result just to save us some typing
@@ -218,6 +219,7 @@ class AsyncRailway<S,E> {
 
     andThen(switchFunction: AsyncSwitch<S, E>) {
         this.switches.push(switchFunction);
+        return this;
     }
 
     async arriveAtDestination(): AsyncResult<S, E> {
@@ -231,10 +233,58 @@ class AsyncRailway<S,E> {
 }
 {% endhighlight %}
 
-So to use this helper class we can now do this:
+So with  this helper class we can now do this:
 
+{% highlight typescript %}
+await (AsyncRailway
+    .leaveTrainStation(Result.ok<User, string>(someUser))
+    .andThen(convertAsync(validateUsernameNotEmpty))
+    .andThen(convertAsync(validateUsernameNotEmpty))
+    .andThen(validateUsernameIsUnqique)
+    .arriveAtDestination())
+    .match({
+        Ok: user => printValidUser(user),
+        Err: errMsg => printError(errMsg)
+    });
+{% endhighlight %}
 
-Lets harness the power of RxJS the reactive extensions framework for JavaScript. 
+Awesome that works! But what if out functions are transforming the initial input from one type to another? For example suppose we want to add a function to the chain that saves the user account to our database and returns the inserted user's identifier:
+
+{% highlight typescript %}
+...
+
+class SavedUserAccount {
+    constructor(readonly newUserId: string) {}
+}
+
+async function saveUser(input: User): Promise<Result<User, string>> {
+    // Let's pretend we made a call to our user database to save the user and
+    //  this is the new user's user ID
+    Promise.resolve(new SavedUserAccount('ee2dadae-f70f-4cd4-b0a3-0d03d779118f'));
+}
+
+...
+
+await (AsyncRailway
+    .leaveTrainStation(Result.ok<User, string>(someUser))
+    .andThen(convertAsync(validateUsernameNotEmpty))
+    .andThen(convertAsync(validateUsernameNotEmpty))
+    .andThen(validateUsernameIsUnqique)
+    .andThen(saveUser)
+    .arriveAtDestination())
+    .match({
+        Ok: user => printValidUser(user),
+        Err: errMsg => printError(errMsg)
+    });
+{% endhighlight %}
+
+Whoops this doesn't compile anymore because our `AsyncRailway` class only allows us to collect and use switch functions that act on and return the same type.
+
+So how could we solve this? Lets harness the power of RxJS the reactive extensions framework for JavaScript and create a couple of custom operators that would allow us to acheive this same result and still allow us to transform inputs to a different output type. 
+
+If you aren't familiar with RxJs or reactive programming check out these links for some context:
+- [What is Reactive Programming - Andre Stalz](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754)
+- [Learn RxJs](https://www.learnrxjs.io/)
 
 Here's an implementation idea using custom RxJs operators to allow this:
 
