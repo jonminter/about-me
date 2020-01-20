@@ -10,7 +10,7 @@ tags:
     - reactive programming
 published: false
 ---
-I have have always had a fascination with functional programming ever since I took a class on functional programming using the OCaml programing language way, way back when I was in undergraduate school. Expressive type systems, higher order functions, immutability, and the ability to be explicit about where functions have side effects make it easier to write correct programs. But there's no denying that there can be a steep learning curve for those of us who have gotten used to writing code in an imperative style.
+I have always had a fascination with functional programming ever since I took a class on functional programming using the OCaml programing language way, way back when I was in undergraduate school. Expressive type systems, higher order functions, immutability, and the ability to be explicit about where functions have side effects make it easier to write correct programs. But there's no denying that there can be a steep learning curve for those of us who have gotten used to writing code in an imperative style.
 
 As I continue to put into practice functional programming concepts I try to learn about some of the different patterns bright minds have come up.  One such pattern I was reading about a while ago that intrigued me is dubbed "Railway Oriented Programming" by Scott Wlaschin.
 
