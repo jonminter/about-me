@@ -1,14 +1,14 @@
 ---
 author: Jon Minter
 title:  "Asynchronous Functions and the Railway Oriented Programming Pattern"
-date:   2020-04-23 09:30:00 -0400
+date:   2020-04-23 10:23:00 -0400
 categories:
     - Posts
 tags:
     - functional programming
     - railway oriented programming
     - reactive programming
-published: false
+published: true
 ---
 I've always had a fascination with functional programming ever since taking a class on functional programming using the OCaml programming language when I was in undergraduate school. Expressive type systems, higher order functions, immutability, and the ability to be explicit about where functions have side effects can make it easier to write correct programs. Although, there's no denying that there can be a steep learning curve for those of us who have gotten used to writing code in an imperative style.
 
@@ -114,7 +114,7 @@ Result.ok(newUser)
 
 So what's the problem here? Remember when we create an async function in JavaScript this is syntactic sugar for converting the function into a function that returns a promise. So if you tried to compile this code it would fail compilation since it no longer returns `Result<User, UserValidationError>` but `Promise<Result<User, UserValidationError>>` so it cannot be included in the chain of functions.
 
-So you might say why not just use promises instead of this Result type? Well we could but since a promise doesn't enforce a failure type the TypeScript compiler can only guarantee the types along the happy path and not the failure path. A promise failure is just _some_ error type, it could be a string,  it could be an Error object, it could be a number, anything.
+So you might say why not just use promises instead of this Result type? Well we could but since a promise doesn't enforce a failure type the TypeScript compiler can only guarantee the types along the happy path and not the failure path. A promise failure is just _some_ error type, it could be a string,  it could be an Error object, it could be a number, or anything.
 
 Another alternative is use the Result type and then every time we get to a point where we need to perform an async operation switch to using promises and then back to our ROP pattern.
 
@@ -284,7 +284,7 @@ First, we define an type alias so we have a shorthand type for defining our swit
 
 Second, we define an RxJs operator by creating a function that returns an `OperatorFunction` that RxJs can use to transform the `Observable`. This function uses the RxJs `pipe` function and uses the `flatMap` operator with a function that will unwrap the `Result` object, check if there was an error and if not pass the value to the next switch function in the railway sequence. However if the `Result` object contains an error then we short circuit and return the `Error`. This is almost identical to the promise based version above.
 
-Why use `flatMap` instead of the RxJs `map` operator? Remember since we're working with promises the switch function is returning a promise of a future `Result` object rather than the `Result` object it. So we end up with an observable item that contains a promise of a `Result` and the `flatMap` operator will handle the flattening for us so that at the end of all our operations we end up with an `Observable<Result<User, string>>` instead of `Observable<Promise<Result<User, string>>>`.
+Why use `flatMap` instead of the RxJs `map` operator? Remember since we're working with promises the switch function is returning a promise of a future `Result` object rather than the `Result` object itself. So we end up with an observable item that contains a promise of a `Result` and the `flatMap` operator will handle the flattening for us so that at the end of all our operations we end up with an `Observable<Result<User, UserValidationError>>` instead of `Observable<Promise<Result<User, UserValidationError>>>`.
 
 So here's how we would use this new operator:
 
