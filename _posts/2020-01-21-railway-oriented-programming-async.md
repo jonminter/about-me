@@ -10,27 +10,33 @@ tags:
     - reactive programming
 published: false
 ---
-I have always had a fascination with functional programming ever since I took a class on functional programming using the OCaml programing language way, way back when I was in undergraduate school. Expressive type systems, higher order functions, immutability, and the ability to be explicit about where functions have side effects make it easier to write correct programs. But there's no denying that there can be a steep learning curve for those of us who have gotten used to writing code in an imperative style.
+I've always had a fascination with functional programming ever since taking a class on functional programming using the OCaml programming language when I was in undergraduate school. Expressive type systems, higher order functions, immutability, and the ability to be explicit about where functions have side effects can make it easier to write correct programs. Although, there's no denying that there can be a steep learning curve for those of us who have gotten used to writing code in an imperative style.
 
 As I continue to put into practice functional programming concepts I try to learn about some of the different patterns bright minds have come up.  One such pattern I was reading about a while ago that intrigued me is dubbed "Railway Oriented Programming" by Scott Wlaschin.
 
-So what is "Railway Oriented Programming"? Railway Oriented Programming is a pattern for handling branches in logic in your program in a clean and concise way. Instead of nesting if statements or using exceptions you use the power of function composition and a static type system to chain functions together and allow you to choose which branch of logic to go to next skipping over the remaining functions in the chain when an error is encountered.
+So what is "Railway Oriented Programming" or ROP? Railway Oriented Programming is a pattern for handling branches in logic within your program in a clean and concise way. Instead of nesting if statements or using exceptions you use the power of function composition and a static type system to chain functions together. This allows you to choose which branch of logic to go to next and to skip over any remaining functions in the chain when an error is encountered.
 
-Scott Wlaschin uses the anology of of railway switches to visualize how this control flow pattern works. I think its particularly useful for modeling the error handling for your domain logic. It allows handling of errors in a type safe way and force the developer to think about both the happy and not so happy paths of the application logic. It's important to note this isn't meant to be a replacement for exceptions but can be used as a different way to think about and model the control flow of your domain logic.
 
-If you are not familiar with this concept you will probably find it helpful to read these posts first to get some context as Scott Wlaschin can explain the concept better than I can:
+Mr. Wlaschin uses the anology of of railway switches to visualize how this control flow pattern works. I think this pattern is particularly useful for modeling the error handling for your domain logic. It allows handling of errors in a type safe way and helps the developer to think about both the happy and not so happy paths of the application logic. It's important to note this isn't meant to be a replacement for exceptions but it can be used as a different way to think about and model the control flow of your domain logic.
+
+If you are not familiar with this concept you will probably find it helpful to read these posts first to get some context as Mr. Wlaschin can explain the concept better than I can:
 - [Railway Oriented Programming - Scott Wlaschin (I highly recommend watching the video of his talk)](https://fsharpforfunandprofit.com/rop/)
 - [Against Railway Oriented Programming - Scott Wlaschin](https://fsharpforfunandprofit.com/posts/against-railway-oriented-programming/)
 
-So you've read these articles and you agree that is this is cool idea and want to start using it where it makes sense in your code base. I was attempting to use this pattern with TypeScript recently. This pattern works great if your switch functions are all synchronous and don't need to wait for an HTTP call, file system operation or database query. You simply start with your initial input and pass that input through your switches along the railway. But this is the real world and most of us have to interact with systems outside of our program. I didn't real find much in my reading to see how anyone who using this pattern handled that outside of F#.
+So you've read these articles and you agree that is this is cool idea and want to start using it where it makes sense in your code base. This pattern works great if your switch functions are all synchronous and don't need to wait for an HTTP call, file system operation or database query. You simply start with your initial input and pass that input through your switches along your proverbial railway. But this is the real world and most of us have to interact with systems outside of our program. I didn't real find much in my reading to see how anyone who used this pattern handled asynchronous operations outside of F#. I attempted to use this pattern with TypeScript recently and with TypeScript since it is JavaScript under the hood we need a way to handle asynchronous functions.
 
-So lets see what happens when you throw asynchronous functions in the mix.
+So lets see explore what happens when you throw asynchronous functions in the mix.
 
-Let's use as an example validating user input for an API. We'll use the functional programming helper library [True Myth](https://github.com/true-myth/true-myth) for demonstration purposes as it includes an implementation of the Result type and helper functions to wrap/unwrap values and chain together function calls.
+Let's use the example validating user input for an API. We'll use the functional programming helper library [True Myth](https://github.com/true-myth/true-myth) for demonstration purposes as it includes an implementation of the Result type and helper functions to wrap/unwrap values and chain together function calls.
 
 Let's consider this example:
 {% highlight typescript %}
 import { Result, Ok, Err } from 'true-myth';
+
+enum UserValidationError {
+    USERNAME_EMPTY = 'Username cannot be empty!'
+    USERNAME_INVALID_CHARS = 'Username must only contain alphanumeric chars and dashes/underscores',
+}
 
 class User {
     constructor(
@@ -40,16 +46,18 @@ class User {
     ) {}
 }
 
-function validateUsernameNotEmpty(input: User): Result<User, string> {
+const VALID_USERNAME_REGEX = /^[A-Za-z0-9_-]+$/;
+
+function validateUsernameNotEmpty(input: User): Result<User, UserValidationError> {
     if (input.username.length === 0) {
-        return Result.err('Username cannot be empty!');
+        return Result.err(UserValidationError.USERNAME_EMPTY);
     }
     return Result.ok(input);
 }
 
-function validateUsernameHasValidChars(input: User): Result<User, string> {
-    if (!input.username.matches(/^[A-Za-z0-9_-]$/)) {
-        return Result.err('Username must only contain alphanumeric chars and dashes/underscores');
+function validateUsernameHasValidChars(input: User): Result<User, UserValidationError> {
+    if (!input.username.matches(VALID_USERNAME_REGEX)) {
+        return Result.err(UserValidationError.USERNAME_INVALID_CHARS);
     }
     return Result.ok(input);
 }
@@ -58,8 +66,8 @@ function printValidUser(input: User) {
     console.log('User is valid: ', input);
 }
 
-function printError(errorMessage: string) {
-    console.log('User is invalid: ', errorMessage);
+function printError(error: UserValidationError) {
+    console.log('User is invalid: ', error);
 }
 
 const newUser = User('', 'Jon', 'Minter');
@@ -68,25 +76,26 @@ Result.ok(newUser)
     .andThen(validateUsernameHasValidChars)
     .match({
         Ok: user => printValidUser(user),
-        Err: errorMsg => printError(errorMsg),
+        Err: error => printError(error),
     });
 {% endhighlight %}
 
-We can see how this pattern might be useful for a few reasons:
+We can see how this pattern might be useful for a few reasons (some of these are not limited to this pattern):
 - Encourages us to write small, focused functions and chain them together, these small functions are easier to test
-- We can use descriptive names for each function and makes it easy to see what our code is supposed to do by looking at functions that are chained together, our code becomes self documenting
-- We can use the type system to remind us to handle the non-happy path and encourage us to handle the output at the end of both paths the exact same way regardless of how we actually got there
+- We can use descriptive names for each function and makes it easy to see what our code is supposed to do by looking at functions that are chained together
+- We can use use pattern matching to handle failures in the same way regardless of where in the chain of operations we diverted to our failure path
+- Since we are using a language that doesn't provide checked exceptions this provides us a way to handle errors and know the type of the error, where using exceptions or Promise error callbacks we just get _some_ error back. We have no way of knowing the error's type
 - If an exception occurs we know it was truly from something exceptional and we can let that exception bubble up to our main exception handler
 
-So this is all well and good but what if for example we needed to validate that the username isn't in use by another user? We'd probably have to make a call to an API or run a query against a database to check if the user name is unique. And that call is going to be an asynchronous call that returns a promise. Why is this an issue? Let's consider this addition to our code:
+So this is all well and good, but what if for example we need to validate that the username isn't in use by another user? We'd probably have to make a call to an API or run a query against a database to check if the username is unique. And that call is going to be an asynchronous call that returns a promise. Why is this an issue? Let's consider this addition to our code:
 
 {% highlight typescript %}
 ...
 
-async function validateUsernameIsUnique(input: User): Promise<Result<User, string>> {
+async function validateUsernameIsUnique(input: User): Promise<Result<User, UserValidationError>> {
     const userCount = await getCountOfUsersWithUsername(input.username);
     if (userCount !== 0) {
-        return Result.err('Username is not unique!');
+        return Result.err(UserValidationError.USERNAME_NOT_UNIQUE);
     }
     return Result.ok(input);
 }
@@ -99,11 +108,11 @@ Result.ok(newUser)
     .andThen(validateUsernameIsUnique)
     .match({
         Ok: user => printValidUser(user),
-        Err: errorMsg => printError(errorMsg),
+        Err: error => printError(error),
     });
 {% endhighlight %}
 
-So what's the problem here? Remember when we create an async function in JavaScript this is syntactic sugar for converting the function into a function that returns a promise. So if you tried compile this code it would fail compilation since it no longer returns `Result<User, String>` but `Promise<Result<User, String>>` so it cannot be included in the chain of functions.
+So what's the problem here? Remember when we create an async function in JavaScript this is syntactic sugar for converting the function into a function that returns a promise. So if you tried to compile this code it would fail compilation since it no longer returns `Result<User, UserValidationError>` but `Promise<Result<User, UserValidationError>>` so it cannot be included in the chain of functions.
 
 So you might say why not just use promises instead of this Result type? Well we could but since a promise doesn't enforce a failure type the TypeScript compiler can only guarantee the types along the happy path and not the failure path. A promise failure is just _some_ error type, it could be a string,  it could be an Error object, it could be a number, anything.
 
@@ -111,17 +120,6 @@ Another alternative is use the Result type and then every time we get to a point
 
 Example:
 {% highlight typescript %}
-...
-
-async function validateUsernameIsUnique(input: User): Promise<Result<User, string>> {
-    const userCount = await getCountOfUsersWithUsername(input.username);
-    if (userCount !== 0) {
-        //There is another user with this username
-        return Result.err('Username is not unique!');
-    }
-    return Result.ok(input);
-}
-
 ...
 
 async function doValidation(newUser: User) {
@@ -135,14 +133,14 @@ async function doValidation(newUser: User) {
     validationResult
         .match({
             Ok: user => printValidUser(user),
-            Err: errorMsg => printError(errorMsg),
+            Err: error => printError(error),
         });
 }
 {% endhighlight %}
 
-This works but it's messy and makes us use a different pattern for synchronous vs asynchronous logic. And this is a fairly simple contrived example imagine trying to maintain a large codebase having to do this switching between sync/async logic. We don't have our clean railway pattern anymore.
+This works but it's messy and forces us use a different pattern for synchronous vs asynchronous logic. This is a fairly simple and contrived example, but imagine trying to maintain a large codebase having to do this switching between sync/async logic. We don't have our clean railway pattern anymore.
 
-Also what if we wanted to have the ability to collect a list of functions to chain together at runtime and some or all of those function are asyncronous? We aren't able to do that either.
+Also, what if we wanted to have the ability to collect a list of functions to chain together at runtime and some or all of those function are asynchronous? We aren't able to do that either.
 
 {% highlight typescript %}
 const validators = [
@@ -204,36 +202,40 @@ So with  this helper class we can now do this:
 
 {% highlight typescript %}
 await (AsyncRailway
-    .leaveTrainStation(Result.ok<User, string>(someUser))
+    .leaveTrainStation(Result.ok<User, UserValidationError>(someUser))
     .andThen(convertAsync(validateUsernameNotEmpty))
     .andThen(convertAsync(validateUsernameNotEmpty))
     .andThen(validateUsernameIsUnqique)
     .arriveAtDestination())
     .match({
         Ok: user => printValidUser(user),
-        Err: errMsg => printError(errMsg)
+        Err: error => printError(error)
     });
 {% endhighlight %}
 
-Awesome that works! But what if our functions are transforming the initial input from one type to another? For example suppose we want to add a function to the chain that saves the user account to our database and returns the inserted user's identifier:
+Awesome that works! However, what if our functions are transforming the initial input from one type to another? For example suppose we want to add a function to the chain that saves the user account to our database and returns the inserted user's identifier:
 
 {% highlight typescript %}
 ...
+enum UserSaveError {
+    DB_SAVE_FAILED = "Failed saving user to the database!"
+}
+type UserError = UserValidationError | UserSaveError;
 
 class SavedUserAccount {
     constructor(readonly newUserId: string) {}
 }
 
-async function saveUser(input: User): Promise<Result<SavedUserAccount, string>> {
+async function saveUser(input: User): Promise<Result<SavedUserAccount, UserError>> {
     // Let's pretend we made a call to our user database to save the user and
     //  this is the new user's user ID
-    return Promise.resolve(new SavedUserAccount('ee2dadae-f70f-4cd4-b0a3-0d03d779118f'));
+    return Promise.resolve(new SavedUserAccount(uuid4()));
 }
 
 ...
 
 await (AsyncRailway
-    .leaveTrainStation(Result.ok<User, string>(someUser))
+    .leaveTrainStation(Result.ok<User, UserError>(someUser))
     .andThen(convertAsync(validateUsernameNotEmpty))
     .andThen(convertAsync(validateUsernameNotEmpty))
     .andThen(validateUsernameIsUnqique)
@@ -241,13 +243,13 @@ await (AsyncRailway
     .arriveAtDestination())
     .match({
         Ok: user => printValidUser(user),
-        Err: errMsg => printError(errMsg)
+        Err: error => printError(error)
     });
 {% endhighlight %}
 
 Whoops! This doesn't compile anymore because our `AsyncRailway` class only allows us to collect and use switch functions that act on and return the same type.
 
-So how could we solve this? Lets harness the power of RxJS the reactive extensions framework for JavaScript and create a custom operator that would allow us to acheive this same result and still allow us to transform inputs to a different output type. 
+So how could we solve this? There are ways we could implement this with overloaded function definitions and create something that would allow us create a pipeline of transformation functions but there is a simpler solution. We can instead harness the power of RxJS the reactive extensions framework for JavaScript and create a custom operator that would allow us to achieve this same result and still allow us to transform inputs to a different output type with just a few lines of code.
 
 If you aren't familiar with RxJs or reactive programming check out these links for some context:
 - [What is Reactive Programming - Andre Stalz](https://gist.github.com/staltz/868e7e9bc2a7b8c1f754)
@@ -276,11 +278,11 @@ function asyncAndThen<I, O, E>(
 }
 {% endhighlight %}
 
-We've managed to do this in just a few lines of code let's break down what it's doing.
+Let's break down what this is doing.
 
 First, we define an type alias so we have a shorthand type for defining our switch functions that can optionally transform the input type to a different output type.
 
-And second, we define an RxJs operator by creating a function that returns an `OperatorFunction` that RxJs can use to transform the `Observable`. This function uses the RxJs `pipe` function and uses the `flatMap` operator with a function that will unwrap the `Result` object, check if there was an error and if not pass the value to the next switch function in the railway sequence. However if the `Result` object contains an error then we short circuit and return the `Error`. Almost identical to the promise based version above.
+Second, we define an RxJs operator by creating a function that returns an `OperatorFunction` that RxJs can use to transform the `Observable`. This function uses the RxJs `pipe` function and uses the `flatMap` operator with a function that will unwrap the `Result` object, check if there was an error and if not pass the value to the next switch function in the railway sequence. However if the `Result` object contains an error then we short circuit and return the `Error`. This is almost identical to the promise based version above.
 
 Why use `flatMap` instead of the RxJs `map` operator? Remember since we're working with promises the switch function is returning a promise of a future `Result` object rather than the `Result` object it. So we end up with an observable item that contains a promise of a `Result` and the `flatMap` operator will handle the flattening for us so that at the end of all our operations we end up with an `Observable<Result<User, string>>` instead of `Observable<Promise<Result<User, string>>>`.
 
@@ -295,17 +297,16 @@ of(Result.ok(johnPublic))
         asyncAndThen(validateUsernameIsUnqique),
         asyncAndThen(saveUser)
     )
-    .toPromise()
-    .then(result => {
+    .subscribe(result => {
         result.match({
             Ok: user => printSavedUser(user),
-            Err: errMsg => printError(errMsg)
+            Err: error => printError(error)
         });
     });
 {% endhighlight %}
 
 So now that we've defined this operator we can use our railway pattern and use it with functions that transform the input and still have the power of TypeScript's type system to ensure for example we've put our switch functions in the right order and that they can only be used with the types they are defined for.
 
-One other side benefit of using RxJs to do this is that we can not only run our sequence of switch functions on a single item we could use the same sequence of transformations on a stream of multiple items. So for example you could use the same logic to import a batch of users into your user database that you use to create a single user.
+Another benefit of using RxJs to do this we can now run our sequence of switch functions on a stream of multiple items allowing us to use the same sequence of transformations whether we are working with a single item or many items. For example you could use the same logic to import a batch of users into your user database that you use to create a single user.
 
 So that's it, I hope someone finds this useful or thought provoking. You can see a [complete code example](https://www.github.com/jonminter/railway-oriented-programming-async) on my github.
