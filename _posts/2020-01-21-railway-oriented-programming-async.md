@@ -1,7 +1,7 @@
 ---
 author: Jon Minter
 title:  "Asynchronous Functions and the Railway Oriented Programming Pattern"
-date:   2020-01-21 09:30:00 -0400
+date:   2020-04-23 09:30:00 -0400
 categories:
     - Posts
 tags:
@@ -25,7 +25,7 @@ If you are not familiar with this concept you will probably find it helpful to r
 
 So you've read these articles and you agree that is this is cool idea and want to start using it where it makes sense in your code base. This pattern works great if your switch functions are all synchronous and don't need to wait for an HTTP call, file system operation or database query. You simply start with your initial input and pass that input through your switches along your proverbial railway. But this is the real world and most of us have to interact with systems outside of our program. I didn't real find much in my reading to see how anyone who used this pattern handled asynchronous operations outside of F#. I attempted to use this pattern with TypeScript recently and with TypeScript since it is JavaScript under the hood we need a way to handle asynchronous functions.
 
-So lets see explore what happens when you throw asynchronous functions in the mix.
+So lets explore what happens when you throw asynchronous functions in the mix.
 
 Let's use the example validating user input for an API. We'll use the functional programming helper library [True Myth](https://github.com/true-myth/true-myth) for demonstration purposes as it includes an implementation of the Result type and helper functions to wrap/unwrap values and chain together function calls.
 
@@ -307,6 +307,6 @@ of(Result.ok(johnPublic))
 
 So now that we've defined this operator we can use our railway pattern and use it with functions that transform the input and still have the power of TypeScript's type system to ensure for example we've put our switch functions in the right order and that they can only be used with the types they are defined for.
 
-Another benefit of using RxJs to do this we can now run our sequence of switch functions on a stream of multiple items allowing us to use the same sequence of transformations whether we are working with a single item or many items. For example you could use the same logic to import a batch of users into your user database that you use to create a single user.
+Another benefit of using RxJs is that we can now run our sequence of switch functions on a stream of items allowing us to use the same sequence of transformations whether we are working with a single item or many items. For example you could use the same logic to import a batch of users into your user database that you use to create a single user.
 
 So that's it, I hope someone finds this useful or thought provoking. You can see a [complete code example](https://www.github.com/jonminter/railway-oriented-programming-async) on my github.
