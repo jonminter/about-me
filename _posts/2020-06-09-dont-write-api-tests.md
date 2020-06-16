@@ -54,7 +54,7 @@ Let's implement a simple CRUD REST API. This is the OpenAPI specification that w
 
 So I've shown in this article some of the benefits of utilizing generative testing strategies in addition to example based testing strategies when testing REST APIs. And we've walked through creating a proof-of-concept API testing tool that uses OpenAPI specifications to automate generating test cases for testing a RESTful CRUD API.
 
-[You can find a complete code example here on my GitHub.]()
+[You can find a complete code example here on my GitHub.](https://github.com/jonminter/generative-api-testing-example)
 
 Below are some existing API testing tools you may be interested in that can jump start your effort to write less, and generate more API tests:
 - [Schemathesis](https://github.com/kiwicom/schemathesis) - Property based API testing tool built on top of python's [hypothesis](https://hypothesis.readthedocs.io/en/latest/) property based testing framework
